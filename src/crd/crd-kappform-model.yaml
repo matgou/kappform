@@ -1,0 +1,59 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: models.kappform.dev
+spec:
+  scope: Namespaced
+  group: kappform.dev
+  names:
+    kind: Model
+    plural: models
+    singular: model
+    shortNames:
+      - mod
+      - models
+      - model
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              x-kubernetes-preserve-unknown-fields: true
+              properties:
+                partenaire:
+                  type: string
+                  pattern: "^[0-9][0-9][0-9]$"
+                git:
+                  type: string
+                prefix:
+                  type: string
+            status:
+              type: object
+              x-kubernetes-preserve-unknown-fields: true
+              properties:
+                create_prj_fn:
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+                  properties:
+                    prj-status:
+                      type: string
+                      default: creating
+                      enum:
+                      - creating
+                      - ready
+                      - deleting
+            name:
+              type: string
+              pattern: "^[a-z-A-Z]+"
+      additionalPrinterColumns:
+#        - name: partenaire
+#          type: string
+#          jsonPath: .spec.partenaire
+        - name: status
+          type: string
+          jsonPath: .status.create_prj_handler.prj-status

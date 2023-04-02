@@ -1,0 +1,7 @@
+apiVersion: kappform.dev/v1
+kind: Model
+metadata:
+  name: aws-bucket-s3
+spec:
+  git: https://github.com/matgou/kappform
+  prefix: examples/AWS_BucketS3

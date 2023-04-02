@@ -1,0 +1,18 @@
+###########################################################
+# Dockerfile.orperator
+# 
+#  Build the operator container image
+###########################################################
+#  METADATA
+###########################################################
+FROM python:3.11
+LABEL org.opencontainers.image.authors="mathieu.goulin@gadz.org"
+
+# CODE
+###########################################################
+ADD src/operator /src
+RUN pip install kopf
+
+## CMD
+###########################################################
+CMD kopf run /src/handlers.py --verbose
