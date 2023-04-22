@@ -1,8 +1,13 @@
 import kopf
 import logging
 import pykube
+import kubernetes
+import shortuuid
 import yaml
 import asyncio
+
+kubernetes.config.load_incluster_config()
+api = kubernetes.client.CustomObjectsApi()
 
 def update_model(namespace, name, status):
     """
@@ -10,16 +15,18 @@ def update_model(namespace, name, status):
     """
     logging.info(f"update {namespace}/{name} state '{status}'")
     try:
-        api = pykube.HTTPClient(pykube.KubeConfig.from_service_account())
-        prj = pykube.object_factory(api, "kappform.dev/v1", "Models").objects(api).filter(namespace=namespace).get(name=name)
-        logging.info(f"models: '{prj.obj}'")
-        prj.obj['status']['create_prj_handler']['prj-status'] = status
-        prj.update()
-        api.session.close()
+        group = 'kappform.dev' # str | the custom resource's group
+        version = 'v1' # str | the custom resource's version
+        plural = 'models'
+        prj = api.get_namespaced_custom_object(group, version, namespace, plural, name)
+        prj['status']['create_model_handler'] = {'prj-status': status}
+        api.patch_namespaced_custom_object(group, version, namespace, plural, name,prj)
+        logging.info(f"models: '{prj}'")
     except Exception as e:
         logging.error(f"Error when updating prj", e)
 
 def start_terraformjob(body, spec, name, namespace, logger, mode):
+    uuid=shortuuid.uuid().lower()
     pod_data = yaml.safe_load(f"""
         apiVersion: batch/v1
         kind: Job
@@ -28,7 +35,7 @@ def start_terraformjob(body, spec, name, namespace, logger, mode):
             labels:
                 application: kappform-engine
                 model-ref: {name}.{namespace} 
-            name: apply-{namespace}-{name}
+            name: apply-{namespace}-{name}-{uuid}
         spec:
             template:
                 spec:
@@ -50,12 +57,12 @@ def start_terraformjob(body, spec, name, namespace, logger, mode):
 
 
 @kopf.on.delete('models')
-async def delete_prj_handler(spec, **_):
+async def delete_model_handler(spec, **_):
     pass
 
 
 @kopf.on.create('models')
-async def create_prj_handler(body, spec, name, namespace, logger, **kwargs):
+async def create_model_handler(body, spec, name, namespace, logger, **kwargs):
     logging.info(f"A handler create_prj_fn is called with body: {spec}")
     kopf.info(body, reason='Creating', message='Start model initialisation {namespace}/{name}')
     start_terraformjob(body, spec, name, namespace, logger, 'apply')

@@ -23,8 +23,8 @@ install:
 	kubectl apply -f src/crd/crd-kappform-model.yaml
 
 clean:
-	- $(MAKE) -C examples clean
 	- kubectl delete -f src/operator/deployment.yaml
+	- kubectl patch crd models.kappform.dev -p '{"metadata":{"finalizers":[]}}' --type=merge
 	- kubectl delete -f src/crd/crd-kappform-model.yaml
 	- docker rmi $(IMAGE_OPERATOR)
 

@@ -1,3 +1,5 @@
-pykube
+kubernetes
+pykube-ng
 kopf
 asyncio
+shortuuid
