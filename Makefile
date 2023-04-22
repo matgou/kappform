@@ -4,16 +4,22 @@
 #  Organise build and dependancy
 ###########################################################
 DOCKERFILE_OPERATOR= Docker/Dockerfile.operator
+DOCKERFILE_WORKER= Docker/Dockerfile.worker
 VERSION= latest
 IMAGE_OPERATOR= gcr.io/universal-ion-377015/kappform-operator:$(VERSION)
+IMAGE_WORKER= gcr.io/universal-ion-377015/kappform-worker:$(VERSION)
 SUBDIRS := $(wildcard */.)
 
 all: build test install
 
 build: docker-images
 
-docker-images: $(DOCKERFILE_OPERATOR)
+docker-images: docker-image-operator docker-image-worker
+
+docker-image-operator: $(DOCKERFILE_OPERATOR)
 	docker build -f $(DOCKERFILE_OPERATOR) . -t $(IMAGE_OPERATOR)
+docker-image-worker: ${DOCKERFILE_WORKER}
+	docker build -f $(DOCKERFILE_WORKER) . -t $(IMAGE_WORKER)
 
 test:
 

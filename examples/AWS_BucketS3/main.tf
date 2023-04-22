@@ -3,9 +3,6 @@
 ###########################################################
 # Variables
 ###########################################################
-variable "region" {
-  default = "us-west-2"
-}
 variable "domain_name" {
   default = "example.com"
 }
@@ -13,7 +10,7 @@ variable "domain_name" {
 # Provider
 ###########################################################
 provider "aws" {
-  region = "${var.region}"
+  region = "eu-west-3"
 }
 
 ###########################################################
@@ -21,7 +18,6 @@ provider "aws" {
 ###########################################################
 resource "aws_s3_bucket" "site" {
   bucket = "${var.domain_name}"
-  region = "${var.region}"
   acl = "public-read"
   website {
     index_document = "index.html"
