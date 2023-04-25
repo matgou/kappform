@@ -2,6 +2,7 @@ import kopf
 import logging
 import pykube
 import kubernetes
+from kubernetes.client.exceptions import ApiException
 import shortuuid
 import yaml
 import asyncio
@@ -9,21 +10,24 @@ import asyncio
 kubernetes.config.load_incluster_config()
 api = kubernetes.client.CustomObjectsApi()
 
-async def update_object(kind ,namespace, name, status):
+CRD_GROUP = 'kappform.dev'
+CRD_VERSION = 'v1'
+GOOGLE_PROJECT = 'universal-ion-377015'
+
+async def update_object(kind, namespace, name, status):
     """
     Update status of model
     """
-    logging.info(f"update {namespace}/{name} state '{status}'")
+    plural = f'{kind}s'
+    logging.info("update %s/%s.%s to %s", plural, name, namespace, status)
     try:
-        group = 'kappform.dev' # str | the custom resource's group
-        version = 'v1' # str | the custom resource's version
-        plural = '{kind}s'
-        prj = api.get_namespaced_custom_object(group, version, namespace, plural, name)
-        prj['status']['create_{kind}_handler'] = {'prj-status': status}
-        api.patch_namespaced_custom_object(group, version, namespace, plural, name,prj)
-        logging.info(f"{kind}: '{prj}'")
-    except Exception as e:
-        logging.error(f"Error when updating prj", e)
+        prj = api.get_namespaced_custom_object(CRD_GROUP, CRD_VERSION, namespace, plural, name)
+        logging.info("%s", prj)
+        prj['status'][f'create_{kind}_handler'] = {'prj-status': status}
+        api.patch_namespaced_custom_object(CRD_GROUP, CRD_VERSION, namespace, plural, name,prj)
+        logging.info("%s: %s", kind, prj)
+    except ApiException as excep:
+        logging.error("Error when updating prj : %s", str(excep))
 
 async def start_terraformjob(body, spec, name, namespace, logger, mode, kind, backoffLimit=0):
     uuid=shortuuid.uuid().lower()
@@ -45,9 +49,9 @@ async def start_terraformjob(body, spec, name, namespace, logger, mode, kind, ba
         backoffLimit: {backoffLimit}
         metadata:
             labels:
-                kappfrom.dev/application: kappform-job
-                kappfrom.dev/kind-ref: {kind}
-                kappfrom.dev/{kind}-ref: {name}.{namespace} 
+                {CRD_GROUP}/application: kappform-job
+                {CRD_GROUP}/kind-ref: {kind}
+                {CRD_GROUP}/{kind}-ref: {name}.{namespace} 
             name: apply-{namespace}-{name}-{uuid}
         spec:
             backoffLimit: 1
@@ -60,12 +64,17 @@ async def start_terraformjob(body, spec, name, namespace, logger, mode, kind, ba
                     restartPolicy: Never
                     containers:
                     - name: tf-action
+                      volumeMounts:
+                      - name: google-cloud-key
+                        mountPath: /var/secrets/google
                       image: "gcr.io/universal-ion-377015/kappform-worker:latest"
                       args:
                       - {mode}
                       env:
                       - name: GOOGLE_APPLICATION_CREDENTIALS
                         value: /var/secrets/google/key.json
+                      - name: GOOGLE_PROJECT
+                        value: {GOOGLE_PROJECT}
                       - name: GIT
                         value: "{git}"
                       - name: PREFIX
@@ -102,10 +111,8 @@ async def create_model_handler(body, spec, name, namespace, logger, **kwargs):
 
 
 async def find_model(name, namespace):
-    group = 'kappform.dev' # str | the custom resource's group
-    version = 'v1' # str | the custom resource's version
     plural = 'models'
-    prj = api.get_namespaced_custom_object(group, version, namespace, plural, name)
+    prj = api.get_namespaced_custom_object(CRD_GROUP, CRD_VERSION, namespace, plural, name)
     return prj
 
 @kopf.on.create('platforms')
@@ -126,31 +133,37 @@ async def create_platform_handler(body, spec, name, namespace, logger, **kwargs)
 
 
 @kopf.on.field('job', field='status')
-def job_change(body, spec, name, namespace, logger, old, new, **_):
+async def job_change(body, namespace, logger, new, **_):
     """
     When job change status, update model status
-    """ 
+    """
     active = new.get('active', None)
     succeeded = new.get('succeeded', None)
     labels = body['metadata']['labels']
-    logging.info(f"active: {active}")
-    logging.info(f"succeeded: {succeeded}")
-    logging.info(f"labels: {labels}")
-    if labels:   
-        kind = labels.get('kappfrom.dev/kind-ref', None)
+    logging.info("active: %s", active)
+    logging.info("succeeded: %s", succeeded)
+    logging.info("labels: %s", labels)
+    # Extract kappform labels
+    if labels:
+        kind = labels.get(f'{CRD_GROUP}/kind-ref', None)
         if kind is None:
-            pass
-        ref = labels.get('kappfrom.dev/{kind}-ref', None)
-        if ref is not None:
-            [model, namespace] = ref.split('.')
-            if model:
+            logger.info(f'{CRD_GROUP}/kind-ref not found')
+            return
+        ref = labels.get(f'{CRD_GROUP}/{kind}-ref', None)
+        if ref is None:
+            logger.info(f'{CRD_GROUP}/{kind}-ref not found')
+            return
+        else:
+            [obj, namespace] = ref.split('.')
+            if obj:
+                status='Error-see-logs'
                 if active:
-                    update_object(kind, namespace, ref, 'Registering')
-                else:
-                    if succeeded:
-                        update_object(namespace, ref, 'Ready')
-                    else:
-                        update_object(namespace, ref, 'Error-see-logs')
-    pass
+                    status='Registering'
+                elif succeeded:
+                    status='Ready'
+                # Update source CRD object status
+                logger.info(f'setting {kind}/{obj}.{namespace} to {status}')
+                await update_object(kind, namespace, obj, status)
+    return
 
 
