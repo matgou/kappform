@@ -9,7 +9,7 @@ import asyncio
 kubernetes.config.load_incluster_config()
 api = kubernetes.client.CustomObjectsApi()
 
-def update_model(namespace, name, status):
+async def update_object(kind ,namespace, name, status):
     """
     Update status of model
     """
@@ -17,11 +17,11 @@ def update_model(namespace, name, status):
     try:
         group = 'kappform.dev' # str | the custom resource's group
         version = 'v1' # str | the custom resource's version
-        plural = 'models'
+        plural = '{kind}s'
         prj = api.get_namespaced_custom_object(group, version, namespace, plural, name)
-        prj['status']['create_model_handler'] = {'prj-status': status}
+        prj['status']['create_{kind}_handler'] = {'prj-status': status}
         api.patch_namespaced_custom_object(group, version, namespace, plural, name,prj)
-        logging.info(f"models: '{prj}'")
+        logging.info(f"{kind}: '{prj}'")
     except Exception as e:
         logging.error(f"Error when updating prj", e)
 
@@ -45,13 +45,18 @@ async def start_terraformjob(body, spec, name, namespace, logger, mode, kind, ba
         backoffLimit: {backoffLimit}
         metadata:
             labels:
-                application: kappform-engine
-                {kind}-ref: {name}.{namespace} 
+                kappfrom.dev/application: kappform-job
+                kappfrom.dev/kind-ref: {kind}
+                kappfrom.dev/{kind}-ref: {name}.{namespace} 
             name: apply-{namespace}-{name}-{uuid}
         spec:
             backoffLimit: 1
             template:
                 spec:
+                    volumes:
+                    - name: google-cloud-key
+                      secret:
+                        secretName: kappform-key
                     restartPolicy: Never
                     containers:
                     - name: tf-action
@@ -59,6 +64,8 @@ async def start_terraformjob(body, spec, name, namespace, logger, mode, kind, ba
                       args:
                       - {mode}
                       env:
+                      - name: GOOGLE_APPLICATION_CREDENTIALS
+                        value: /var/secrets/google/key.json
                       - name: GIT
                         value: "{git}"
                       - name: PREFIX
@@ -130,17 +137,20 @@ def job_change(body, spec, name, namespace, logger, old, new, **_):
     logging.info(f"succeeded: {succeeded}")
     logging.info(f"labels: {labels}")
     if labels:   
-        model_ref = labels.get('model-ref', None)
-        [model, namespace] = model_ref.split('.')
-        if model:
-            if active:
-                update_model(namespace, model, 'Registering')
-            else:
-                if succeeded:
-                    update_model(namespace, model, 'Ready')
+        kind = labels.get('kappfrom.dev/kind-ref', None)
+        if kind is None:
+            pass
+        ref = labels.get('kappfrom.dev/{kind}-ref', None)
+        if ref is not None:
+            [model, namespace] = ref.split('.')
+            if model:
+                if active:
+                    update_object(kind, namespace, ref, 'Registering')
                 else:
-                    update_model(namespace, model, 'Error-see-logs')
-
+                    if succeeded:
+                        update_object(namespace, ref, 'Ready')
+                    else:
+                        update_object(namespace, ref, 'Error-see-logs')
     pass
 
 

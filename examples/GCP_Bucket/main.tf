@@ -1,5 +1,5 @@
 ###########################################################
-# AWS_BucketS3/main.tf
+# GCP_Bucket/main.tf
 ###########################################################
 # Variables
 ###########################################################
@@ -9,30 +9,28 @@ variable "domain_name" {
 ###########################################################
 # Provider
 ###########################################################
-provider "aws" {
-  region = "eu-west-3"
+provider "google" {
+  region      = "eu-west-9"
 }
 
 ###########################################################
 # Resources
 ###########################################################
-resource "aws_s3_bucket" "site" {
-  bucket = "${var.domain_name}"
-  acl = "public-read"
+resource "google_storage_bucket" "static-site" {
+  name          = "${var.domain_name}"
+  location      = "EU"
+  force_destroy = true
+
+  uniform_bucket_level_access = true
+
   website {
-    index_document = "index.html"
-    error_document = "error.html"
+    main_page_suffix = "index.html"
+    not_found_page   = "404.html"
   }
-  policy = <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [{
-    "Sid": "PublicReadForGetBucketObjects",
-    "Effect": "Allow",
-    "Principal": "*",
-    "Action": "s3:GetObject",
-    "Resource": ["arn:aws:s3:::${var.domain_name}/*"]
-  }]
-}
-EOF
+  cors {
+    origin          = ["${var.domain_name}"]
+    method          = ["GET", "HEAD", "PUT", "POST", "DELETE"]
+    response_header = ["*"]
+    max_age_seconds = 3600
+  }
 }

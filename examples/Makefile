@@ -10,10 +10,10 @@ build:
 	
 test:
 
-install: AWS_BucketS3/main.tf AWS_BucketS3/model.yaml
-	kubectl apply -f AWS_BucketS3/model.yaml
+install: GCP_Bucket/main.tf GCP_Bucket/model.yaml
+	kubectl apply -f GCP_Bucket/model.yaml
 
 clean: 
-	- kubectl delete -f AWS_BucketS3/model.yaml
+	- kubectl delete -f GCP_Bucket/model.yaml
 
 .PHONY: all

@@ -21,9 +21,13 @@ docker-image-operator: $(DOCKERFILE_OPERATOR)
 docker-image-worker: ${DOCKERFILE_WORKER}
 	docker build -f $(DOCKERFILE_WORKER) . -t $(IMAGE_WORKER)
 
+auth:
+	kubectl delete secret kappform-key
+	kubectl create secret generic kappform-key --from-file=key.json=auth.json
+	
 test:
 
-install:
+install: auth
 	docker push $(IMAGE_OPERATOR)
 	docker push $(IMAGE_WORKER)
 	kubectl apply -f src/operator/deployment.yaml
