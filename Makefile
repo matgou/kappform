@@ -25,12 +25,16 @@ test:
 
 install:
 	docker push $(IMAGE_OPERATOR)
+	docker push $(IMAGE_WORKER)
 	kubectl apply -f src/operator/deployment.yaml
 	kubectl apply -f src/crd/crd-kappform-model.yaml
+	kubectl apply -f src/crd/crd-kappform-platform.yaml
 
 clean:
 	- kubectl delete -f src/operator/deployment.yaml
+	- kubectl patch crd platforms.kappform.dev -p '{"metadata":{"finalizers":[]}}' --type=merge
 	- kubectl patch crd models.kappform.dev -p '{"metadata":{"finalizers":[]}}' --type=merge
+	- kubectl delete -f src/crd/crd-kappform-platform.yaml
 	- kubectl delete -f src/crd/crd-kappform-model.yaml
 	- docker rmi $(IMAGE_OPERATOR)
 

@@ -1,0 +1,8 @@
+apiVersion: kappform.dev/v1
+kind: Platform
+metadata:
+  name: instance1
+spec:
+  model: aws-bucket-s3
+  param:
+    domain_name: instance1.kappform.dev

@@ -22,4 +22,7 @@ case "$ACTION" in
     apply)
         /usr/bin/terraform apply -auto-approve
     ;;
+    fmt)
+        /usr/bin/terraform fmt
+    ;;
 esac

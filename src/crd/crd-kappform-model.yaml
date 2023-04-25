@@ -54,3 +54,9 @@ spec:
         - name: status
           type: string
           jsonPath: .status.create_model_handler.prj-status
+        - name: git
+          type: string
+          jsonPath: .spec.git
+        - name: partenaire
+          type: string
+          jsonPath: .spec.partenaire

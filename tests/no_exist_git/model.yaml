@@ -1,0 +1,7 @@
+apiVersion: kappform.dev/v1
+kind: Model
+metadata:
+  name: test-no-exist-git
+spec:
+  git: https://noexist.exemple.com/matgou/kappform
+  prefix: .
