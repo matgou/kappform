@@ -58,8 +58,10 @@ spec:
       serviceAccountName: kappform-account
       containers:
       - name: kappform-container
-        image: gcr.io/universal-ion-377015/kappform-operator
+        image: ${IMAGE_OPERATOR}
         imagePullPolicy: Always
         env:
         - name: GOOGLE_PROJECT
           value: ${GOOGLE_PROJECT}
+        - name: IMAGE_WORKER
+          value: ${IMAGE_WORKER}

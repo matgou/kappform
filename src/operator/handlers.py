@@ -14,6 +14,7 @@ api = kubernetes.client.CustomObjectsApi()
 CRD_GROUP = 'kappform.dev'
 CRD_VERSION = 'v1'
 GOOGLE_PROJECT = os.getenv('GOOGLE_PROJECT')
+IMAGE_WORKER = os.getenv('IMAGE_WORKER')
 
 async def update_object(kind, namespace, name, status):
     """
@@ -35,16 +36,12 @@ async def start_terraformjob(spec, name, namespace, logger, mode, kind, backoffL
     Start a kubernetes job to execute terraform in a pod
     """
     uuid=shortuuid.uuid().lower()
-    logging.info(f"processing: {spec}")
-    try:
-        model_spec=spec['model_spec']
-        git = model_spec['git']
-        prefix = "."
-        if 'prefix' in model_spec:
-            prefix = model_spec['prefix']
-    except Exception as e:
-        kopf.PermanentError(str(e))
-        logging.error(f"Error when creating job", e)
+    logging.info("processing: %s", spec)
+    model_spec=spec.get('model_spec', {})
+    git = model_spec.get('git', None)
+    prefix = model_spec.get('prefix', '.')
+    if git is None:
+        logger.error("Error model_spec doesn't containt git field : %s", model_spec)
         return 1
 
     pod_data = yaml.safe_load(f"""
@@ -72,7 +69,7 @@ async def start_terraformjob(spec, name, namespace, logger, mode, kind, backoffL
                       volumeMounts:
                       - name: google-cloud-key
                         mountPath: /var/secrets/google
-                      image: "gcr.io/universal-ion-377015/kappform-worker:latest"
+                      image: "{IMAGE_WORKER}"
                       args:
                       - {mode}
                       env:
