@@ -60,3 +60,6 @@ spec:
       - name: kappform-container
         image: gcr.io/universal-ion-377015/kappform-operator
         imagePullPolicy: Always
+        env:
+        - name: GOOGLE_PROJECT
+          value: ${GOOGLE_PROJECT}

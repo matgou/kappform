@@ -30,9 +30,9 @@ test:
 install: auth
 	docker push $(IMAGE_OPERATOR)
 	docker push $(IMAGE_WORKER)
-	kubectl apply -f src/operator/deployment.yaml
-	kubectl apply -f src/crd/crd-kappform-model.yaml
-	kubectl apply -f src/crd/crd-kappform-platform.yaml
+	GOOGLE_PROJECT=$(shell gcloud config get-value project) envsubst < src/operator/deployment.yaml | kubectl apply -f -
+	envsubst < src/crd/crd-kappform-model.yaml | kubectl apply -f -
+	envsubst < src/crd/crd-kappform-platform.yaml | kubectl apply -f -
 
 clean:
 	- kubectl delete -f src/operator/deployment.yaml

@@ -6,13 +6,14 @@ from kubernetes.client.exceptions import ApiException
 import shortuuid
 import yaml
 import asyncio
+import os
 
 kubernetes.config.load_incluster_config()
 api = kubernetes.client.CustomObjectsApi()
 
 CRD_GROUP = 'kappform.dev'
 CRD_VERSION = 'v1'
-GOOGLE_PROJECT = 'universal-ion-377015'
+GOOGLE_PROJECT = os.getenv('GOOGLE_PROJECT')
 
 async def update_object(kind, namespace, name, status):
     """
@@ -29,7 +30,10 @@ async def update_object(kind, namespace, name, status):
     except ApiException as excep:
         logging.error("Error when updating prj : %s", str(excep))
 
-async def start_terraformjob(body, spec, name, namespace, logger, mode, kind, backoffLimit=0):
+async def start_terraformjob(spec, name, namespace, logger, mode, kind, backoffLimit=0):
+    """
+    Start a kubernetes job to execute terraform in a pod
+    """
     uuid=shortuuid.uuid().lower()
     logging.info(f"processing: {spec}")
     try:
@@ -54,6 +58,7 @@ async def start_terraformjob(body, spec, name, namespace, logger, mode, kind, ba
                 {CRD_GROUP}/{kind}-ref: {name}.{namespace} 
             name: apply-{namespace}-{name}-{uuid}
         spec:
+            ttlSecondsAfterFinished: 900
             backoffLimit: 1
             template:
                 spec:
@@ -103,7 +108,7 @@ async def delete_model_handler(spec, **_):
 async def create_model_handler(body, spec, name, namespace, logger, **kwargs):
     logging.info(f"A handler create_model_handler is called with body: {spec}")
     kopf.info(body, reason='Creating', message='Start model initialisation {namespace}/{name}')
-    rc=await start_terraformjob(body, {'model_spec': spec}, name, namespace, logger, 'fmt', 'model')
+    rc=await start_terraformjob({'model_spec': spec}, name, namespace, logger, 'fmt', 'model')
     if rc > 0:
         return {'prj-status': 'Registering-Creating-Job'}
     else:
@@ -125,7 +130,7 @@ async def create_platform_handler(body, spec, name, namespace, logger, **kwargs)
     new_spec = {'plateform_spec': spec, 'model_spec': model['spec']}
 
     kopf.info(body, reason='Creating', message='Start platform initialisation {namespace}/{name}')
-    rc=await start_terraformjob(body, new_spec, name, namespace, logger, 'apply', 'platform')
+    rc=await start_terraformjob(new_spec, name, namespace, logger, 'apply', 'platform')
     if rc > 0:
         return {'prj-status': 'Registering-Creating-Job'}
     else:

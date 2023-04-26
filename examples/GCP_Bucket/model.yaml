@@ -5,3 +5,4 @@ metadata:
 spec:
   git: https://github.com/matgou/kappform
   prefix: examples/GCP_Bucket
+  container_template: gcp_job
