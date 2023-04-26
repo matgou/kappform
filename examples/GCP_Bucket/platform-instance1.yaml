@@ -1,8 +1,8 @@
 apiVersion: kappform.dev/v1
 kind: Platform
 metadata:
-  name: instance1
+  name: gcp-test-bucket
 spec:
-  model: aws-bucket-s3
+  model: google-storage-bucket
   param:
     domain_name: instance1.kappform.dev
