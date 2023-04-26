@@ -22,7 +22,7 @@ docker-image-worker: ${DOCKERFILE_WORKER}
 	docker build -f $(DOCKERFILE_WORKER) . -t $(IMAGE_WORKER)
 
 auth:
-	kubectl delete secret kappform-key
+	- kubectl delete secret kappform-key
 	kubectl create secret generic kappform-key --from-file=key.json=auth.json
 	
 test:
