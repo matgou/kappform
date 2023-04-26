@@ -18,6 +18,7 @@ AWS_REGION= eu-west-3
 # KUBE_PROVIDER=$(GOOGLE_PROVIDER)
 KUBE_PROVIDER=$(AWS_PROVIDER)
 AWS_REGION= eu-west-3
+TFSTATE_BUCKET=tfstate-7e0a831c905c2b9e3f82
 ###########################################################
 ifeq ($(KUBE_PROVIDER),$(GOOGLE_PROVIDER))
 GOOGLE_PROJECT=$(shell gcloud config get-value project)
@@ -62,7 +63,7 @@ test:
 install: auth
 	docker push $(IMAGE_OPERATOR)
 	docker push $(IMAGE_WORKER)
-	IMAGE_WORKER=$(IMAGE_WORKER) IMAGE_OPERATOR=$(IMAGE_OPERATOR) GOOGLE_PROJECT=$(shell gcloud config get-value project) envsubst < src/operator/deployment.yaml | kubectl apply -f -
+	TFSTATE_BUCKET=$(TFSTATE_BUCKET) KUBE_PROVIDER=$(KUBE_PROVIDER) IMAGE_WORKER=$(IMAGE_WORKER) IMAGE_OPERATOR=$(IMAGE_OPERATOR) GOOGLE_PROJECT=$(shell gcloud config get-value project) envsubst < src/operator/deployment.yaml | kubectl apply -f -
 	envsubst < src/crd/crd-kappform-model.yaml | kubectl apply -f -
 	envsubst < src/crd/crd-kappform-platform.yaml | kubectl apply -f -
 

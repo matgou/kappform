@@ -13,7 +13,11 @@ find .
 export 
 echo "##################################################################"
 [ "x$PREFIX" != "x" ] && cd $PREFIX
-/usr/bin/terraform init -upgrade
+echo 'terraform { 
+    backend "s3" {  
+     }
+}' >> backend-$(shuf -i1-10000 -n1).tf
+/usr/bin/terraform init -upgrade $BACKEND_CONFIG
 
 case "$ACTION" in
     plan)

@@ -65,3 +65,7 @@ spec:
           value: ${GOOGLE_PROJECT}
         - name: IMAGE_WORKER
           value: ${IMAGE_WORKER}
+        - name: TFSTATE_BUCKET
+          value: ${TFSTATE_BUCKET}
+        - name: KUBE_PROVIDER
+          value: ${KUBE_PROVIDER}
