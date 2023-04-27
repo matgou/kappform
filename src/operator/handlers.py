@@ -17,6 +17,7 @@ GOOGLE_PROJECT = os.getenv('GOOGLE_PROJECT')
 IMAGE_WORKER = os.getenv('IMAGE_WORKER')
 TFSTATE_BUCKET = os.getenv('TFSTATE_BUCKET')
 KUBE_PROVIDER = os.getenv('KUBE_PROVIDER')
+TFSTATE_REGION = os.getenv('TFSTATE_REGION')
 
 async def update_object(kind, namespace, name, status):
     """
@@ -84,7 +85,7 @@ async def start_terraformjob(spec, name, namespace, logger, mode, kind, backoffL
                       - name: PREFIX
                         value: "{prefix}"
                       - name: BACKEND_CONFIG
-                        value : -backend-config=bucket={TFSTATE_BUCKET} -backend-config=key={kind}.{name}.{namespace}
+                        value : "-backend-config=bucket={TFSTATE_BUCKET} -backend-config=key={kind}.{name}.{namespace} -backend-config=region={TFSTATE_REGION}"
     """)
     kopf.adopt(pod_data)
 

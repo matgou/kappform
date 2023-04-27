@@ -69,3 +69,5 @@ spec:
           value: ${TFSTATE_BUCKET}
         - name: KUBE_PROVIDER
           value: ${KUBE_PROVIDER}
+        - name: TFSTATE_REGION
+          value: ${TFSTATE_REGION}
