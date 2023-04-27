@@ -65,19 +65,26 @@ async def start_terraformjob(spec, name, namespace, logger, mode, kind, backoffL
                     volumes:
                     - name: google-cloud-key
                       secret:
-                        secretName: kappform-key
+                        secretName: google-cloud-key
+                    - name: aws-cloud-key
+                      secret:
+                        secretName: aws-cloud-key
                     restartPolicy: Never
                     containers:
                     - name: tf-action
                       volumeMounts:
                       - name: google-cloud-key
                         mountPath: /var/secrets/google
+                      - name: aws-cloud-key
+                        mountPath: /var/secrets/aws
                       image: "{IMAGE_WORKER}"
                       args:
                       - {mode}
                       env:
                       - name: GOOGLE_APPLICATION_CREDENTIALS
                         value: /var/secrets/google/key.json
+                      - name: AWS_SHARED_CREDENTIALS_FILE
+                        value: /var/secrets/aws/credentials
                       - name: GOOGLE_PROJECT
                         value: {GOOGLE_PROJECT}
                       - name: GIT

@@ -54,10 +54,12 @@ docker-image-worker: ${DOCKERFILE_WORKER}
 	docker build -f $(DOCKERFILE_WORKER) . -t $(IMAGE_WORKER)
 
 auth:
-ifeq ($(KUBE_PROVIDER),$(GOOGLE_PROVIDER))
-	- kubectl delete secret kappform-key
-	kubectl create secret generic kappform-key --from-file=key.json=auth.json
-endif
+	touch auth.jsob
+	- kubectl delete secret google-cloud-key
+	kubectl create secret generic google-cloud-key --from-file=key.json=auth.json
+	- kubectl delete secret aws-cloud-key
+	touch auth_aws.txt
+	kubectl create secret generic aws-cloud-key --from-file=credentials=auth_aws.txt
 	
 test:
 
