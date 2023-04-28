@@ -66,11 +66,11 @@ test:
 install: auth
 	docker push $(IMAGE_OPERATOR)
 	docker push $(IMAGE_WORKER)
-	TFSTATE_REGION=${TFSTATE_REGION} TFSTATE_BUCKET=$(TFSTATE_BUCKET) KUBE_PROVIDER=$(KUBE_PROVIDER) IMAGE_WORKER=$(IMAGE_WORKER) IMAGE_OPERATOR=$(IMAGE_OPERATOR) GOOGLE_PROJECT=$(shell gcloud config get-value project) envsubst < src/operator/deployment.yaml | kubectl apply -f -
 	envsubst < src/crd/crd-kappform-model.yaml | kubectl apply -f -
 	envsubst < src/crd/crd-kappform-platform.yaml | kubectl apply -f -
+	TFSTATE_REGION=${TFSTATE_REGION} TFSTATE_BUCKET=$(TFSTATE_BUCKET) KUBE_PROVIDER=$(KUBE_PROVIDER) IMAGE_WORKER=$(IMAGE_WORKER) IMAGE_OPERATOR=$(IMAGE_OPERATOR) GOOGLE_PROJECT=$(shell gcloud config get-value project) envsubst < src/operator/deployment.yaml | kubectl apply -f -
 
-clean:
+clean: clean-demo
 	- kubectl delete -f src/operator/deployment.yaml
 	- kubectl patch crd platforms.kappform.dev -p '{"metadata":{"finalizers":[]}}' --type=merge
 	- kubectl patch crd models.kappform.dev -p '{"metadata":{"finalizers":[]}}' --type=merge
@@ -81,4 +81,7 @@ clean:
 demo:
 	$(MAKE) -B -C examples
 
+clean-demo:
+	kubectl patch model google-storage-bucket  -p '{"metadata":{"finalizers":[]}}' --type=merge
+	
 .PHONY: all

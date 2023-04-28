@@ -8,6 +8,14 @@ Your own Infrastructure selfservice for Devops !
 
 ## Installation
 
-   make
+To install the operator to your cluster just run the following command :
 
-## Installation
+```bash
+   make
+```
+
+## Remove operator from your cluster
+
+```bash
+  make clean
+```

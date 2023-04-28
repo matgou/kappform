@@ -1,40 +1,87 @@
-import kopf
+#!/bin/env python
+"""
+Kybernetes Operator to manage model and plateform objects.
+This operator run kubernetes-job to deploy terraform as service
+
+USAGE : kopf run /src/handlers.py --verbose
+
+See Docker/Dockerfile.orperator and src/operator/deployment.yaml for more information about usage 
+"""
+
+import os
 import logging
+import yaml
 import pykube
 import kubernetes
 from kubernetes.client.exceptions import ApiException
 import shortuuid
-import yaml
-import asyncio
-import os
-
+import kopf
+################################
+# Main environnement parametrage
+################################
 kubernetes.config.load_incluster_config()
-api = kubernetes.client.CustomObjectsApi()
+api_crd = kubernetes.client.CustomObjectsApi()
+api_kube = pykube.HTTPClient(pykube.KubeConfig.from_service_account())
 
 CRD_GROUP = 'kappform.dev'
 CRD_VERSION = 'v1'
-GOOGLE_PROJECT = os.getenv('GOOGLE_PROJECT')
-IMAGE_WORKER = os.getenv('IMAGE_WORKER')
-TFSTATE_BUCKET = os.getenv('TFSTATE_BUCKET')
-KUBE_PROVIDER = os.getenv('KUBE_PROVIDER')
-TFSTATE_REGION = os.getenv('TFSTATE_REGION')
+GOOGLE_PROJECT = os.getenv('GOOGLE_PROJECT') # Google project to pass to terraform job
+IMAGE_WORKER = os.getenv('IMAGE_WORKER')     # Static Image to start job
+TFSTATE_BUCKET = os.getenv('TFSTATE_BUCKET') # Bucket pour le stockage du tfstate
+KUBE_PROVIDER = os.getenv('KUBE_PROVIDER')   # Provider kubernetes GKE ou EKS
+TFSTATE_REGION = os.getenv('TFSTATE_REGION') # Region pour le backend
 
-async def update_object(kind, namespace, name, status):
+################################
+# Utils functions
+################################
+async def find_one(kind, namespace, name):
     """
-    Update status of model
+    Return an object definition by getting int on kubernetes
+
+    Keyword arguments:
+    kind -- the CRD name of object (type of crd)
+    namespace -- the namespace of the object to update
+    name -- the name of the object to update
     """
     plural = f'{kind}s'
-    logging.info("update %s/%s.%s to %s", plural, name, namespace, status)
+    prj = api_crd.get_namespaced_custom_object(CRD_GROUP, CRD_VERSION, namespace, plural, name)
+    return prj
+
+async def update_one(kind, namespace, name, obj):
+    """
+    Return an object definition by getting int on kubernetes
+
+    Keyword arguments:
+    kind -- the CRD name of object (type of crd)
+    namespace -- the namespace of the object to update
+    name -- the name of the object to update
+    """
+    plural = f'{kind}s'
+    api_crd.patch_namespaced_custom_object(CRD_GROUP, CRD_VERSION, namespace, plural, name, obj)
+    logging.info("finished update %s : %s.%s", kind, name, namespace)
+
+async def update_object(kind, namespace, name, new_status):
+    """
+    Update status of an crd object to report
+
+    Keyword arguments:
+    kind -- the CRD name of object (type of crd)
+    namespace -- the namespace of the object to update
+    name -- the name of the object to update
+    new_status -- the new status of the object
+    """
+    logging.info("start update %s's status: %s.%s to %s", kind, name, namespace, new_status)
     try:
-        prj = api.get_namespaced_custom_object(CRD_GROUP, CRD_VERSION, namespace, plural, name)
-        logging.info("%s", prj)
-        prj['status'][f'create_{kind}_handler'] = {'prj-status': status}
-        api.patch_namespaced_custom_object(CRD_GROUP, CRD_VERSION, namespace, plural, name,prj)
-        logging.info("%s: %s", kind, prj)
+        # Find the object on kubernetes
+        prj = await find_one(kind, namespace, name)
+        logging.debug("%s", prj)
+        prj['status'][f'create_{kind}_handler'] = {'prj-status': new_status}
+        # Patch the object
+        await update_one(kind, namespace, name, prj)
     except ApiException as excep:
         logging.error("Error when updating prj : %s", str(excep))
 
-async def start_terraformjob(spec, name, namespace, logger, mode, kind, backoffLimit=0):
+async def start_terraformjob(spec, name, namespace, logger, mode, kind, backoff_limit=0):
     """
     Start a kubernetes job to execute terraform in a pod
     """
@@ -50,7 +97,7 @@ async def start_terraformjob(spec, name, namespace, logger, mode, kind, backoffL
     pod_data = yaml.safe_load(f"""
         apiVersion: batch/v1
         kind: Job
-        backoffLimit: {backoffLimit}
+        backoffLimit: {backoff_limit}
         metadata:
             labels:
                 {CRD_GROUP}/application: kappform-job
@@ -59,7 +106,7 @@ async def start_terraformjob(spec, name, namespace, logger, mode, kind, backoffL
             name: apply-{namespace}-{name}-{uuid}
         spec:
             ttlSecondsAfterFinished: 900
-            backoffLimit: 1
+            backoffLimit: 0
             template:
                 spec:
                     volumes:
@@ -97,12 +144,9 @@ async def start_terraformjob(spec, name, namespace, logger, mode, kind, backoffL
     kopf.adopt(pod_data)
 
     try:
-        api = pykube.HTTPClient(pykube.KubeConfig.from_service_account())
-        job = pykube.Job(api, pod_data)
+        job = pykube.Job(api_kube, pod_data)
         job.create()
-        api.session.close()
     except Exception as e:
-        kopf.PermanentError(str(e))
         logging.error(f"Error when creating job", e)
         return -1
     return 1
@@ -110,12 +154,19 @@ async def start_terraformjob(spec, name, namespace, logger, mode, kind, backoffL
 
 @kopf.on.delete('models')
 async def delete_model_handler(spec, **_):
+    """ TODO 
+    Handle deletion of a models, do not delete model if plateform match
+    """
+    logging.info("A handler delete_model_handler is called with body: %s", spec)
     pass
 
 
 @kopf.on.create('models')
-async def create_model_handler(body, spec, name, namespace, logger, **kwargs):
-    logging.info(f"A handler create_model_handler is called with body: {spec}")
+async def create_model_handler(body, spec, name, namespace, logger, **_):
+    """ 
+    Handle creation of a models, do not delete model if plateform match
+    """
+    logging.info("A handler create_model_handler is called with body: %s", spec)
     kopf.info(body, reason='Creating', message='Start model initialisation {namespace}/{name}')
     rc=await start_terraformjob({'model_spec': spec}, name, namespace, logger, 'fmt', 'model')
     if rc > 0:
@@ -124,16 +175,12 @@ async def create_model_handler(body, spec, name, namespace, logger, **kwargs):
         return {'prj-status': 'Error-invalid-spec'}
 
 
-async def find_model(name, namespace):
-    plural = 'models'
-    prj = api.get_namespaced_custom_object(CRD_GROUP, CRD_VERSION, namespace, plural, name)
-    return prj
 
 @kopf.on.create('platforms')
-async def create_platform_handler(body, spec, name, namespace, logger, **kwargs):
-    logging.info(f"A handler create_platform_handler is called with body: {spec}")
+async def create_platform_handler(body, spec, name, namespace, logger, **_):
+    logging.info("A handler create_platform_handler is called with body: %s", spec)
     # Check if model exist
-    model = await find_model(spec['model'], namespace)
+    model = await find_one('model', namespace, spec['model'])
     if model['status']['create_model_handler']['prj-status'] != "Ready":
         return {'prj-status': 'Bad-model-state'}
     new_spec = {'plateform_spec': spec, 'model_spec': model['spec']}

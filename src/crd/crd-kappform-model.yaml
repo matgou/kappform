@@ -57,6 +57,6 @@ spec:
         - name: git
           type: string
           jsonPath: .spec.git
-        - name: partenaire
-          type: string
-          jsonPath: .spec.partenaire
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
