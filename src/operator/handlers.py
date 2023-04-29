@@ -10,8 +10,6 @@ See Docker/Dockerfile.orperator and src/operator/deployment.yaml for more inform
 
 import os
 import logging
-import yaml
-import pykube
 import kubernetes
 from kubernetes.client.exceptions import ApiException
 import shortuuid
@@ -20,8 +18,9 @@ import kopf
 # Main environnement parametrage
 ################################
 kubernetes.config.load_incluster_config()
-api_crd = kubernetes.client.CustomObjectsApi()
-api_kube = pykube.HTTPClient(pykube.KubeConfig.from_service_account())
+kube_client = kubernetes.client
+api_crd = kube_client.CustomObjectsApi()
+api_batch = kube_client.BatchV1Api()
 
 CRD_GROUP = 'kappform.dev'
 CRD_VERSION = 'v1'
@@ -87,70 +86,62 @@ async def start_terraformjob(spec, name, namespace, logger, mode, kind, backoff_
     """
     uuid=shortuuid.uuid().lower()
     logging.info("processing: %s", spec)
+    job_name = f'apply-{namespace}-{name}-{uuid}'
     model_spec=spec.get('model_spec', {})
     git = model_spec.get('git', None)
     prefix = model_spec.get('prefix', '.')
+    BACKEND_CONFIG=f"-backend-config=bucket={TFSTATE_BUCKET} -backend-config=key={kind}.{name}.{namespace} -backend-config=region={TFSTATE_REGION}"
     if git is None:
         logger.error("Error model_spec doesn't containt git field : %s", model_spec)
         return 1
+    metadata = kube_client.V1ObjectMeta(
+        name=job_name,
+        labels={
+            "job_name": job_name,
+            f"{CRD_GROUP}/application": "kappform-job",
+            f"{CRD_GROUP}/kind-ref": f"{kind}",
+            f"{CRD_GROUP}/{kind}-ref": f"{name}.{namespace}", 
+            }
+        )
+    
+    container = kube_client.V1Container(
+        image=IMAGE_WORKER,
+        name=name,
+        image_pull_policy="IfNotPresent",
+        args=[mode],
+        env=[
+            kube_client.V1EnvVar(name="GOOGLE_APPLICATION_CREDENTIALS", value="/var/secrets/google/key.json"),
+            kube_client.V1EnvVar(name="AWS_SHARED_CREDENTIALS_FILE", value="/var/secrets/aws/credentials"),
+            kube_client.V1EnvVar(name="GOOGLE_PROJECT", value=GOOGLE_PROJECT),
+            kube_client.V1EnvVar(name="GIT", value=git),
+            kube_client.V1EnvVar(name="PREFIX", value=prefix),
+            kube_client.V1EnvVar(name="BACKEND_CONFIG", value=BACKEND_CONFIG),
+        ],
+        volume_mounts=[
+            kube_client.V1VolumeMount(name="google-cloud-key", mount_path="/var/secrets/google"),
+            kube_client.V1VolumeMount(name="aws-cloud-key", mount_path="/var/secrets/aws"),
+        ],
+    )
+    pod_template = kube_client.V1PodTemplateSpec(
+            spec=kube_client.V1PodSpec(restart_policy="Never", containers=[container], volumes=[
+                kube_client.V1Volume(name="google-cloud-key", secret=kube_client.V1SecretVolumeSource(secret_name="google-cloud-key")),
+                kube_client.V1Volume(name="aws-cloud-key", secret=kube_client.V1SecretVolumeSource(secret_name="aws-cloud-key")),
+            ]),
+            metadata=kube_client.V1ObjectMeta(name="tf-action", labels={"pod_name": "tf-action"}),
 
-    pod_data = yaml.safe_load(f"""
-        apiVersion: batch/v1
-        kind: Job
-        backoffLimit: {backoff_limit}
-        metadata:
-            labels:
-                {CRD_GROUP}/application: kappform-job
-                {CRD_GROUP}/kind-ref: {kind}
-                {CRD_GROUP}/{kind}-ref: {name}.{namespace} 
-            name: apply-{namespace}-{name}-{uuid}
-        spec:
-            ttlSecondsAfterFinished: 900
-            backoffLimit: 0
-            template:
-                spec:
-                    volumes:
-                    - name: google-cloud-key
-                      secret:
-                        secretName: google-cloud-key
-                    - name: aws-cloud-key
-                      secret:
-                        secretName: aws-cloud-key
-                    restartPolicy: Never
-                    containers:
-                    - name: tf-action
-                      volumeMounts:
-                      - name: google-cloud-key
-                        mountPath: /var/secrets/google
-                      - name: aws-cloud-key
-                        mountPath: /var/secrets/aws
-                      image: "{IMAGE_WORKER}"
-                      args:
-                      - {mode}
-                      env:
-                      - name: GOOGLE_APPLICATION_CREDENTIALS
-                        value: /var/secrets/google/key.json
-                      - name: AWS_SHARED_CREDENTIALS_FILE
-                        value: /var/secrets/aws/credentials
-                      - name: GOOGLE_PROJECT
-                        value: {GOOGLE_PROJECT}
-                      - name: GIT
-                        value: "{git}"
-                      - name: PREFIX
-                        value: "{prefix}"
-                      - name: BACKEND_CONFIG
-                        value : "-backend-config=bucket={TFSTATE_BUCKET} -backend-config=key={kind}.{name}.{namespace} -backend-config=region={TFSTATE_REGION}"
-    """)
-    kopf.adopt(pod_data)
-
+        )
+    job = kube_client.V1Job(
+        api_version="batch/v1",
+        kind="Job",
+        metadata=metadata,
+        spec=kube_client.V1JobSpec(backoff_limit=backoff_limit, template=pod_template)
+    )
     try:
-        job = pykube.Job(api_kube, pod_data)
-        job.create()
-    except Exception as e:
-        logging.error(f"Error when creating job", e)
+        api_batch.create_namespaced_job(namespace=namespace, body=job)
+    except ApiException as api_exception:
+        logging.error("Exception when calling BatchV1Api->create_namespaced_cron_job: %s", api_exception)
         return -1
     return 1
-
 
 @kopf.on.delete('models')
 async def delete_model_handler(spec, **_):
