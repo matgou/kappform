@@ -37,7 +37,7 @@ endif
 
 SUBDIRS := $(wildcard */.)
 
-all: login build test install
+all: login build push
 
 build: docker-images
 
@@ -62,10 +62,13 @@ auth:
 	kubectl create secret generic aws-cloud-key --from-file=credentials=auth_aws.txt
 	
 test:
+	python src/operator/tests/handlers_test.py
 
-install: auth
+push:
 	docker push $(IMAGE_OPERATOR)
 	docker push $(IMAGE_WORKER)
+
+install: auth
 	envsubst < src/crd/crd-kappform-model.yaml | kubectl apply -f -
 	envsubst < src/crd/crd-kappform-platform.yaml | kubectl apply -f -
 	TFSTATE_REGION=${TFSTATE_REGION} TFSTATE_BUCKET=$(TFSTATE_BUCKET) KUBE_PROVIDER=$(KUBE_PROVIDER) IMAGE_WORKER=$(IMAGE_WORKER) IMAGE_OPERATOR=$(IMAGE_OPERATOR) GOOGLE_PROJECT=$(shell gcloud config get-value project) envsubst < src/operator/deployment.yaml | kubectl apply -f -

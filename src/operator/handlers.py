@@ -14,10 +14,12 @@ import kubernetes
 from kubernetes.client.exceptions import ApiException
 import shortuuid
 import kopf
+import yaml
 ################################
 # Main environnement parametrage
 ################################
-kubernetes.config.load_incluster_config()
+#kubernetes.config.load_incluster_config()
+kubernetes.config.load_config()
 kube_client = kubernetes.client
 api_crd = kube_client.CustomObjectsApi()
 api_batch = kube_client.BatchV1Api()
@@ -25,10 +27,10 @@ api_batch = kube_client.BatchV1Api()
 CRD_GROUP = 'kappform.dev'
 CRD_VERSION = 'v1'
 GOOGLE_PROJECT = os.getenv('GOOGLE_PROJECT') # Google project to pass to terraform job
-IMAGE_WORKER = os.getenv('IMAGE_WORKER')     # Static Image to start job
-TFSTATE_BUCKET = os.getenv('TFSTATE_BUCKET') # Bucket pour le stockage du tfstate
-KUBE_PROVIDER = os.getenv('KUBE_PROVIDER')   # Provider kubernetes GKE ou EKS
-TFSTATE_REGION = os.getenv('TFSTATE_REGION') # Region pour le backend
+IMAGE_WORKER = os.getenv('IMAGE_WORKER', '502836801424.dkr.ecr.eu-west-3.amazonaws.com/kappform-worker:latest')     # Static Image to start job
+TFSTATE_BUCKET = os.getenv('TFSTATE_BUCKET', 'tfstate-7e0a831c905c2b9e3f82') # Bucket pour le stockage du tfstate
+KUBE_PROVIDER = os.getenv('KUBE_PROVIDER', 'minikube')   # Provider kubernetes GKE ou EKS
+TFSTATE_REGION = os.getenv('TFSTATE_REGION', 'eu-west-3') # Region pour le backend
 
 ################################
 # Utils functions
@@ -140,6 +142,8 @@ async def start_terraformjob(spec, name, namespace, logger, mode, kind, backoff_
         api_batch.create_namespaced_job(namespace=namespace, body=job)
     except ApiException as api_exception:
         logging.error("Exception when calling BatchV1Api->create_namespaced_cron_job: %s", api_exception)
+        logging.exception(api_exception)
+        logging.error("job %s", yaml.dump(job.to_dict()))
         return -1
     return 1
 
@@ -161,10 +165,12 @@ async def create_model_handler(body, spec, name, namespace, logger, **_):
     kopf.info(body, reason='Creating', message='Start model initialisation {namespace}/{name}')
     rc=await start_terraformjob({'model_spec': spec}, name, namespace, logger, 'fmt', 'model')
     if rc > 0:
-        return {'prj-status': 'Registering-Creating-Job'}
+        model_status={'prj-status': 'Registering-Creating-Job'}
+        logging.info("Setting status to: %s", model_status)
     else:
-        return {'prj-status': 'Error-invalid-spec'}
-
+        model_status={'prj-status': 'Error-invalid-spec'}
+        logging.error("Setting status to: %s", model_status)
+    return model_status
 
 
 @kopf.on.create('platforms')
