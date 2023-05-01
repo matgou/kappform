@@ -10,6 +10,7 @@ DOCKERFILE_WORKER= Docker/Dockerfile.worker
 VERSION= latest
 GOOGLE_PROVIDER= GCP
 AWS_PROVIDER= EKS
+MINIKUBE_PROVIDER= MINIKUBE
 AWS_REGION= eu-west-3
 
 ###########################################################
@@ -17,6 +18,7 @@ AWS_REGION= eu-west-3
 ###########################################################
 # KUBE_PROVIDER=$(GOOGLE_PROVIDER)
 KUBE_PROVIDER=$(AWS_PROVIDER)
+KUBE_PROVIDER=$(MINIKUBE_PROVIDER)
 AWS_REGION= eu-west-3
 TFSTATE_BUCKET=tfstate-7e0a831c905c2b9e3f82
 TFSTATE_REGION=eu-west-3
@@ -32,6 +34,11 @@ IMAGE_OPERATOR= $(AWS_ACCOUNT).dkr.ecr.eu-west-3.amazonaws.com/kappform-operator
 IMAGE_WORKER= $(AWS_ACCOUNT).dkr.ecr.eu-west-3.amazonaws.com/kappform-worker:$(VERSION)
 GOOGLE_PROJECT=$(shell gcloud config get-value project)
 endif
+ifeq ($(KUBE_PROVIDER),$(MINIKUBE_PROVIDER))
+IMAGE_OPERATOR= kappform-operator
+IMAGE_WORKER= kappform-worker
+endif
+
 
 
 
@@ -49,9 +56,20 @@ endif
 docker-images: docker-image-operator docker-image-worker
 
 docker-image-operator: $(DOCKERFILE_OPERATOR)
-	docker build -f $(DOCKERFILE_OPERATOR) . -t $(IMAGE_OPERATOR)
-docker-image-worker: ${DOCKERFILE_WORKER}
+ifeq ($(KUBE_PROVIDER),$(MINIKUBE_PROVIDER))
+	@eval $$(minikube docker-env) ; \
 	docker build -f $(DOCKERFILE_WORKER) . -t $(IMAGE_WORKER)
+else
+	docker build -f $(DOCKERFILE_WORKER) . -t $(IMAGE_WORKER)
+endif
+
+docker-image-worker: ${DOCKERFILE_WORKER}
+ifeq ($(KUBE_PROVIDER),$(MINIKUBE_PROVIDER))
+	@eval $$(minikube docker-env) ; \
+	docker build -f $(DOCKERFILE_WORKER) . -t $(IMAGE_WORKER)
+else
+	docker build -f $(DOCKERFILE_WORKER) . -t $(IMAGE_WORKER)
+endif
 
 auth:
 	touch auth.jsob
@@ -65,8 +83,10 @@ test:
 	python src/operator/tests/handlers_test.py
 
 push:
+ifneq ($(KUBE_PROVIDER),$(MINIKUBE_PROVIDER))
 	docker push $(IMAGE_OPERATOR)
 	docker push $(IMAGE_WORKER)
+endif
 
 install: auth
 	envsubst < src/crd/crd-kappform-model.yaml | kubectl apply -f -
