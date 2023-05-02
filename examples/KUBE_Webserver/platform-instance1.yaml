@@ -1,0 +1,8 @@
+apiVersion: kappform.dev/v1
+kind: Platform
+metadata:
+  name: hello-kappform-webserver
+spec:
+  model: simple-webserver
+  param:
+    message: Hello Kappform !
