@@ -69,7 +69,7 @@ resource "kubernetes_pod" "example" {
     volume {
       name = "html"
       config_map {
-        name = "${kubernetes_config_map.example.name}"
+        name = "${kubernetes_config_map.example.metadata.name}"
       }
     }
   }
