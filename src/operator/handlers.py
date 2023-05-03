@@ -158,6 +158,26 @@ async def delete_model_handler(spec, **_):
     logging.info("A handler delete_model_handler is called with body: %s", spec)
     pass
 
+@kopf.on.delete('platforms')
+async def delete_platform_handler(body, spec, name, namespace, logger, **_):
+    """ TODO 
+    Handle deletion of a platforms, run terraform destroy before clean object
+    """
+    logging.info("A handler delete_platform_handler is called with body: %s", spec)
+    # Check if model exist
+    model = await find_one('model', namespace, spec['model'])
+    if model['status']['create_model_handler']['prj-status'] != "Ready":
+        return {'prj-status': 'Bad-model-state'}
+    new_spec = {'plateform_spec': spec, 'model_spec': model['spec']}
+    kopf.info(body, reason='Destroying', message='Start platform destroy {namespace}/{name}')
+    rc=await start_terraformjob(new_spec, name, namespace, logger, 'destroy', 'platform')
+    if rc > 0:
+        model_status={'prj-status': 'Registering-Creating-Job'}
+        logging.info("Setting status to: %s", model_status)
+    else:
+        model_status={'prj-status': 'Error-invalid-spec'}
+        logging.error("Setting status to: %s", model_status)
+    return model_status
 
 @kopf.on.create('models')
 async def create_model_handler(body, spec, name, namespace, logger, **_):

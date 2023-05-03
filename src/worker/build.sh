@@ -26,6 +26,9 @@ case "$ACTION" in
     apply)
         /usr/bin/terraform apply -auto-approve
     ;;
+    destroy)
+        /usr/bin/terraform destroy -auto-approve
+    ;;
     fmt)
         /usr/bin/terraform fmt
     ;;

@@ -93,6 +93,10 @@ install: auth
 	envsubst < src/crd/crd-kappform-platform.yaml | kubectl apply -f -
 	TFSTATE_REGION=${TFSTATE_REGION} TFSTATE_BUCKET=$(TFSTATE_BUCKET) KUBE_PROVIDER=$(KUBE_PROVIDER) IMAGE_WORKER=$(IMAGE_WORKER) IMAGE_OPERATOR=$(IMAGE_OPERATOR) GOOGLE_PROJECT=$(shell gcloud config get-value project) envsubst < src/operator/deployment.yaml | kubectl apply -f -
 
+rollout:
+	kubectl rollout restart deployment kappform-operator
+	kubectl rollout status deployment kappform-operator
+
 clean: clean-demo
 	- kubectl delete -f src/operator/deployment.yaml
 	- kubectl patch crd platforms.kappform.dev -p '{"metadata":{"finalizers":[]}}' --type=merge
