@@ -159,6 +159,7 @@ async def delete_model_handler(spec, **_):
     pass
 
 @kopf.on.delete('platforms')
+@kopf.on.update('platforms')
 async def delete_platform_handler(body, spec, name, namespace, logger, **_):
     """ TODO 
     Handle deletion of a platforms, run terraform destroy before clean object
@@ -180,6 +181,7 @@ async def delete_platform_handler(body, spec, name, namespace, logger, **_):
     return model_status
 
 @kopf.on.create('models')
+@kopf.on.update('models')
 async def create_model_handler(body, spec, name, namespace, logger, **_):
     """ 
     Handle creation of a models, do not delete model if plateform match
