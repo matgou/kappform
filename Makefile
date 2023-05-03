@@ -79,7 +79,7 @@ auth:
 	touch auth_aws.txt
 	kubectl create secret generic aws-cloud-key --from-file=credentials=auth_aws.txt
 	
-test:
+test: clean
 	python src/operator/tests/handlers_test.py
 
 push:
@@ -109,6 +109,6 @@ demo:
 	$(MAKE) -B -C examples
 
 clean-demo:
-	kubectl patch model google-storage-bucket  -p '{"metadata":{"finalizers":[]}}' --type=merge
+	- kubectl patch model simple-webserver  -p '{"metadata":{"finalizers":[]}}' --type=merge
 	
 .PHONY: all
