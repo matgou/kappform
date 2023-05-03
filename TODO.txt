@@ -1,0 +1,4 @@
+TODO List:
+* Write documentation
+* Do not automatically pass secret to worker but read from configmap before 
+* TODO: In deployment.yaml, remove rbac for worker to use secret in default namespace and put it in specific namespace

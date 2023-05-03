@@ -31,6 +31,7 @@ IMAGE_WORKER = os.getenv('IMAGE_WORKER', 'kappform-worker:latest')     # Static 
 TFSTATE_BUCKET = os.getenv('TFSTATE_BUCKET', 'tfstate-7e0a831c905c2b9e3f82') # Bucket pour le stockage du tfstate
 KUBE_PROVIDER = os.getenv('KUBE_PROVIDER', 'minikube')   # Provider kubernetes GKE ou EKS
 TFSTATE_REGION = os.getenv('TFSTATE_REGION', 'eu-west-3') # Region pour le backend
+SERVICE_ACCOUNT_WORKER = "worker-svc-account"
 
 ################################
 # Utils functions
@@ -92,7 +93,8 @@ async def start_terraformjob(spec, name, namespace, logger, mode, kind, backoff_
     model_spec=spec.get('model_spec', {})
     git = model_spec.get('git', None)
     prefix = model_spec.get('prefix', '.')
-    BACKEND_CONFIG=f"-backend-config=bucket={TFSTATE_BUCKET} -backend-config=key={kind}.{name}.{namespace} -backend-config=region={TFSTATE_REGION}"
+    #BACKEND_CONFIG=f"-backend-config=bucket={TFSTATE_BUCKET} -backend-config=key={kind}.{name}.{namespace} -backend-config=region={TFSTATE_REGION}"
+    BACKEND_CONFIG=f"-backend-config=secret_suffix={kind}.{name}.{namespace}"
     if git is None:
         logger.error("Error model_spec doesn't containt git field : %s", model_spec)
         return 1
@@ -128,9 +130,10 @@ async def start_terraformjob(spec, name, namespace, logger, mode, kind, backoff_
             spec=kube_client.V1PodSpec(restart_policy="Never", containers=[container], volumes=[
                 kube_client.V1Volume(name="google-cloud-key", secret=kube_client.V1SecretVolumeSource(secret_name="google-cloud-key")),
                 kube_client.V1Volume(name="aws-cloud-key", secret=kube_client.V1SecretVolumeSource(secret_name="aws-cloud-key")),
-            ]),
+            ],
+            service_account_name=f"{SERVICE_ACCOUNT_WORKER}" 
+            ),
             metadata=kube_client.V1ObjectMeta(name="tf-action", labels={"pod_name": "tf-action"}),
-
         )
     job = kube_client.V1Job(
         api_version="batch/v1",

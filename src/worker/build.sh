@@ -14,8 +14,8 @@ export
 echo "##################################################################"
 [ "x$PREFIX" != "x" ] && cd $PREFIX
 echo 'terraform { 
-    backend "s3" {  
-     }
+    backend "kubernetes" {  
+    }
 }' >> backend-$(shuf -i1-10000 -n1).tf
 /usr/bin/terraform init -upgrade $BACKEND_CONFIG
 

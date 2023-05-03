@@ -35,8 +35,8 @@ IMAGE_WORKER= $(AWS_ACCOUNT).dkr.ecr.eu-west-3.amazonaws.com/kappform-worker:$(V
 GOOGLE_PROJECT=$(shell gcloud config get-value project)
 endif
 ifeq ($(KUBE_PROVIDER),$(MINIKUBE_PROVIDER))
-IMAGE_OPERATOR= kappform-operator
-IMAGE_WORKER= kappform-worker
+IMAGE_OPERATOR= kappform-operator:latest
+IMAGE_WORKER= kappform-worker:latest
 endif
 
 
@@ -58,9 +58,9 @@ docker-images: docker-image-operator docker-image-worker
 docker-image-operator: $(DOCKERFILE_OPERATOR)
 ifeq ($(KUBE_PROVIDER),$(MINIKUBE_PROVIDER))
 	@eval $$(minikube docker-env) ; \
-	docker build -f $(DOCKERFILE_WORKER) . -t $(IMAGE_WORKER)
+	docker build -f $(DOCKERFILE_OPERATOR) . -t $(IMAGE_OPERATOR)
 else
-	docker build -f $(DOCKERFILE_WORKER) . -t $(IMAGE_WORKER)
+	docker build -f $(DOCKERFILE_OPERATOR) . -t $(IMAGE_OPERATOR)
 endif
 
 docker-image-worker: ${DOCKERFILE_WORKER}

@@ -6,6 +6,13 @@ metadata:
   namespace: default
 
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: worker-svc-account
+  namespace: default
+
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -26,6 +33,19 @@ rules:
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: worker-role
+rules:
+- apiGroups: [""]
+  resources: ["configmaps", "secrets"]
+  verbs: ["*"]  
+- apiGroups: ["coordination.k8s.io"]
+  resources: ["leases"]
+  verbs: ["*"]  
+  
+---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: kappform-operator
@@ -37,6 +57,21 @@ subjects:
 roleRef:
   kind: ClusterRole
   name: model-operator
+  apiGroup: rbac.authorization.k8s.io
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: worker-role
+  namespace: default
+subjects:
+- kind: ServiceAccount
+  name: worker-svc-account
+  namespace: default
+roleRef:
+  kind: ClusterRole
+  name: worker-role
   apiGroup: rbac.authorization.k8s.io
 
 ---
@@ -61,7 +96,7 @@ spec:
       containers:
       - name: kappform-container
         image: ${IMAGE_OPERATOR}
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         env:
         - name: GOOGLE_PROJECT
           value: ${GOOGLE_PROJECT}
