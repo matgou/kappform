@@ -69,7 +69,7 @@ resource "kubernetes_pod" "example" {
     volume {
       name = "html"
       config_map {
-        name = "html-${random_id.id.hex}"
+        name = "${kubernetes_config_map.example.name}"
       }
     }
   }
