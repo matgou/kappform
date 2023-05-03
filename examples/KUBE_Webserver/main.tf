@@ -62,7 +62,7 @@ resource "kubernetes_pod" "example" {
       name  = "webserver"
     
       volume_mount {
-        mount_path = "/var/www/html"
+        mount_path = "/usr/share/nginx/html"
         name = "html"
       }
     }
