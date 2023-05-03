@@ -30,6 +30,39 @@ resource "kubernetes_config_map" "example" {
     "index.html" = "<html><head><title>${var.message}</title></head><body><h1>${var.message}</h1></body></html>"
   }
 }
+resource "kubernetes_service" "example" {
+  metadata {
+    name = "svc-webserver-${random_id.id.hex}"
+  }
+  spec {
+    selector = {
+      app = kubernetes_pod.example.metadata.0.labels.app
+    }
+    session_affinity = "ClientIP"
+    port {
+      port        = 8080
+      target_port = 80
+    }
+
+    type = "LoadBalancer"
+  }
+}
+
+resource "kubernetes_pod" "example" {
+  metadata {
+    name = "webserver-${random_id.id.hex}"
+    labels = {
+      app = "webserver-${random_id.id.hex}"
+    }
+  }
+
+  spec {
+    container {
+      image = "nginx:1.21.6"
+      name  = "webserver"
+    }
+  }
+}
 
 output "bucket" {
   value = "${random_id.id.hex}"
