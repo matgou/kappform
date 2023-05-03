@@ -1,8 +1,8 @@
 apiVersion: kappform.dev/v1
 kind: Platform
 metadata:
-  name: instance1-static-webserver
+  name: instance2-static-webserver
 spec:
   model: simple-webserver
   param:
-    message: Hello Kappform Instance 1 !
+    message: Hello Kappform Instance 2 !
