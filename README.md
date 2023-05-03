@@ -19,3 +19,7 @@ To install the operator to your cluster just run the following command :
 ```bash
   make clean
 ```
+
+## Other solutions
+* kratix (https://github.com/syntasso/kratix)
+
