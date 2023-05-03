@@ -38,7 +38,7 @@ metadata:
   name: worker-role
 rules:
 - apiGroups: [""]
-  resources: ["configmaps", "secrets"]
+  resources: ["configmaps", "secrets", "pods", "services"]
   verbs: ["*"]  
 - apiGroups: ["coordination.k8s.io"]
   resources: ["leases"]
@@ -78,7 +78,7 @@ roleRef:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: kappform-model-operator
+  name: kappform-operator
   namespace: default
 spec:
   replicas: 1

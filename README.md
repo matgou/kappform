@@ -11,7 +11,16 @@ Your own Infrastructure selfservice for Devops !
 To install the operator to your cluster just run the following command :
 
 ```bash
-   make
+   make && make install
+```
+
+## Runing unittest
+
+Unitstest are build for minikube in a local environment :
+
+```bash
+   minikube start
+   make test
 ```
 
 ## Remove operator from your cluster

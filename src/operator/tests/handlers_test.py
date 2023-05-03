@@ -45,7 +45,7 @@ class TestHandlersMethods(unittest.TestCase):
             subprocess.run(f"kubectl apply -f {crd_model_yaml_path}", shell=True, check=True)
             subprocess.run(f"kubectl apply -f {crd_platform_yaml_path}", shell=True, check=True)
             subprocess.run(f"kubectl apply -f {object_model_yaml_path_test1}", shell=True, check=True)
-            time.sleep(10)
+            time.sleep(15)
             subprocess.run(f"kubectl apply -f {object_platform_yaml_path_test1}", shell=True, check=True)
             time.sleep(15)  # give it some time to react and to sleep and to retry
 

@@ -72,7 +72,7 @@ else
 endif
 
 auth:
-	touch auth.jsob
+	touch auth.json
 	- kubectl delete secret google-cloud-key
 	kubectl create secret generic google-cloud-key --from-file=key.json=auth.json
 	- kubectl delete secret aws-cloud-key
