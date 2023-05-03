@@ -60,6 +60,17 @@ resource "kubernetes_pod" "example" {
     container {
       image = "nginx:1.21.6"
       name  = "webserver"
+    
+      volume_mount {
+        mount_path = "/var/www/html"
+        name = "html"
+      }
+    }
+    volume {
+      name = "html"
+      config_map {
+        name = "html-${random_id.id.hex}"
+      }
     }
   }
 }
