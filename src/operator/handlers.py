@@ -168,7 +168,7 @@ async def delete_platform_handler(body, spec, name, namespace, logger, **_):
     # Check if model exist
     model = await find_one('model', namespace, spec['model'])
     if model['status']['create_model_handler']['prj-status'] != "Ready":
-        return {'prj-status': 'Bad-model-state'}
+        raise kopf.TemporaryError("The model is not yet ready.", delay=20)
     new_spec = {'plateform_spec': spec, 'model_spec': model['spec']}
     kopf.info(body, reason='Destroying', message='Start platform destroy {namespace}/{name}')
     rc=await start_terraformjob(new_spec, name, namespace, logger, 'destroy', 'platform')

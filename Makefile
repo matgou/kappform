@@ -79,7 +79,8 @@ auth:
 	touch auth_aws.txt
 	kubectl create secret generic aws-cloud-key --from-file=credentials=auth_aws.txt
 	
-test: clean
+test: clean install-rbac
+	TFSTATE_REGION=${TFSTATE_REGION} TFSTATE_BUCKET=$(TFSTATE_BUCKET) KUBE_PROVIDER=$(KUBE_PROVIDER) IMAGE_WORKER=$(IMAGE_WORKER) IMAGE_OPERATOR=$(IMAGE_OPERATOR) GOOGLE_PROJECT=$(shell gcloud config get-value project) envsubst < src/operator/rbac.yaml | kubectl apply -f -
 	python src/operator/tests/handlers_test.py
 
 push:
@@ -88,10 +89,13 @@ ifneq ($(KUBE_PROVIDER),$(MINIKUBE_PROVIDER))
 	docker push $(IMAGE_WORKER)
 endif
 
-install: auth
+install: auth install-rbac
 	envsubst < src/crd/crd-kappform-model.yaml | kubectl apply -f -
 	envsubst < src/crd/crd-kappform-platform.yaml | kubectl apply -f -
 	TFSTATE_REGION=${TFSTATE_REGION} TFSTATE_BUCKET=$(TFSTATE_BUCKET) KUBE_PROVIDER=$(KUBE_PROVIDER) IMAGE_WORKER=$(IMAGE_WORKER) IMAGE_OPERATOR=$(IMAGE_OPERATOR) GOOGLE_PROJECT=$(shell gcloud config get-value project) envsubst < src/operator/deployment.yaml | kubectl apply -f -
+
+install-rbac:
+	TFSTATE_REGION=${TFSTATE_REGION} TFSTATE_BUCKET=$(TFSTATE_BUCKET) KUBE_PROVIDER=$(KUBE_PROVIDER) IMAGE_WORKER=$(IMAGE_WORKER) IMAGE_OPERATOR=$(IMAGE_OPERATOR) GOOGLE_PROJECT=$(shell gcloud config get-value project) envsubst < src/operator/rbac.yaml | kubectl apply -f -
 
 rollout:
 	kubectl rollout restart deployment kappform-operator
@@ -99,6 +103,7 @@ rollout:
 
 clean: clean-demo
 	- kubectl delete -f src/operator/deployment.yaml
+	- kubectl delete -f src/operator/rbac.yaml
 	- kubectl patch crd platforms.kappform.dev -p '{"metadata":{"finalizers":[]}}' --type=merge
 	- kubectl patch crd models.kappform.dev -p '{"metadata":{"finalizers":[]}}' --type=merge
 	- kubectl delete -f src/crd/crd-kappform-platform.yaml

@@ -26,10 +26,10 @@ class TestHandlersMethods(unittest.TestCase):
         with KopfRunner(['run', '-A', '--verbose', f'{dir_path}/../handlers.py']) as runner:
             subprocess.run(f"kubectl apply -f {crd_model_yaml_path}", shell=True, check=True)
             subprocess.run(f"kubectl apply -f {object_model_yaml_path_test1}", shell=True, check=True)
-            time.sleep(15)  # give it some time to react and to sleep and to retry
+            time.sleep(30)  # give it some time to react and to sleep and to retry
 
             subprocess.run(f"kubectl delete -f {object_model_yaml_path_test1}", shell=True, check=True)
-            time.sleep(1)  # give it some time to react
+            time.sleep(30)  # give it some time to react
 #        if runner.exit_code != 0 or runner.exception is not None:
         print(runner.stdout)
         assert runner.exit_code == 0
@@ -45,13 +45,14 @@ class TestHandlersMethods(unittest.TestCase):
             subprocess.run(f"kubectl apply -f {crd_model_yaml_path}", shell=True, check=True)
             subprocess.run(f"kubectl apply -f {crd_platform_yaml_path}", shell=True, check=True)
             subprocess.run(f"kubectl apply -f {object_model_yaml_path_test1}", shell=True, check=True)
-            time.sleep(15)
+            time.sleep(30)
             subprocess.run(f"kubectl apply -f {object_platform_yaml_path_test1}", shell=True, check=True)
-            time.sleep(15)  # give it some time to react and to sleep and to retry
+            time.sleep(30)  # give it some time to react and to sleep and to retry
 
             subprocess.run(f"kubectl delete -f {object_platform_yaml_path_test1}", shell=True, check=True)
+            time.sleep(30)
             subprocess.run(f"kubectl delete -f {object_model_yaml_path_test1}", shell=True, check=True)
-            time.sleep(1)  # give it some time to react
+            time.sleep(30)  # give it some time to react
  #       if runner.exit_code != 0 or runner.exception is not None:
         print(runner.stdout)
         assert runner.exit_code == 0
