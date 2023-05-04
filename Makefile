@@ -46,7 +46,10 @@ SUBDIRS := $(wildcard */.)
 
 all: login build push
 
-build: docker-images
+build-dep:
+	python -m pip install -r src/operator/requirements.txt
+
+build: build-dep docker-images
 
 login:
 ifeq ($(KUBE_PROVIDER),$(AWS_PROVIDER))
@@ -79,7 +82,7 @@ auth:
 	touch auth_aws.txt
 	kubectl create secret generic aws-cloud-key --from-file=credentials=auth_aws.txt
 	
-test: clean install-rbac
+test: clean build-dep install-rbac
 	TFSTATE_REGION=${TFSTATE_REGION} TFSTATE_BUCKET=$(TFSTATE_BUCKET) KUBE_PROVIDER=$(KUBE_PROVIDER) IMAGE_WORKER=$(IMAGE_WORKER) IMAGE_OPERATOR=$(IMAGE_OPERATOR) GOOGLE_PROJECT=$(shell gcloud config get-value project) envsubst < src/operator/rbac.yaml | kubectl apply -f -
 	python src/operator/tests/handlers_test.py
 
