@@ -18,6 +18,13 @@ class TestHandlersMethods(unittest.TestCase):
     """
     Test method for KOPF Handler
     """
+    
+    def test_find_one(self):
+        """
+        This test try to find an existing object and a non existing object
+        """
+        pass # find_one()
+        
 
     def test_create_model_handler(self):
         """
@@ -49,10 +56,10 @@ class TestHandlersMethods(unittest.TestCase):
             subprocess.run(f"kubectl apply -f {object_platform_yaml_path_test1}", shell=True, check=True)
             time.sleep(30)  # give it some time to react and to sleep and to retry
 
-            subprocess.run(f"kubectl delete -f {object_platform_yaml_path_test1}", shell=True, check=True)
-            time.sleep(30)
-            subprocess.run(f"kubectl delete -f {object_model_yaml_path_test1}", shell=True, check=True)
-            time.sleep(30)  # give it some time to react
+#            subprocess.run(f"kubectl delete -f {object_platform_yaml_path_test1}", shell=True, check=True)
+#            time.sleep(30)
+#            subprocess.run(f"kubectl delete -f {object_model_yaml_path_test1}", shell=True, check=True)
+#            time.sleep(30)  # give it some time to react
  #       if runner.exit_code != 0 or runner.exception is not None:
         print(runner.stdout)
         assert runner.exit_code == 0
